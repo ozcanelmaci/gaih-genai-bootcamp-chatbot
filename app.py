@@ -23,7 +23,7 @@ KOLEKSIYON_ADI = "gaih-abap-chatbot"
 
 # API Anahtarını Streamlit Secrets'tan al ve ortam değişkeni olarak ayarla
 # Lokal test için: 
-os.environ["GOOGLE_API_KEY"] = "AIzaSyDVEFTuvGXdeb0xV9M2xuXkw3e9Z7xAW9w"
+os.environ["GOOGLE_API_KEY"] = "key"
 # Deploy için:
 if "GOOGLE_API_KEY" not in os.environ:
     os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
@@ -145,4 +145,5 @@ if prompt := st.chat_input("ABAP ile ilgili sorunuzu buraya yazın..."):
             st.markdown(response)
     
     # Asistan mesajını hafızaya ekle
+
     st.session_state.messages.append({"role": "assistant", "content": response})
