@@ -13,14 +13,15 @@ from langchain_core.output_parsers import StrOutputParser
 
 # --- DEĞİŞKENLERİ AYARLAYIN ---
 # 1. PDF dosyanızın adını buraya yazın
-PDF_DOSYA_ADI = "ABAP-1_merged.pdf" 
+PDF_DOSYA_ADI = "ABAP-1_merged.pdf"
 # 2. Vektör veritabanının kaydedileceği klasör
-DB_DIZINI = "./chroma_db"
+DB_DIZINI = "chroma_db" # Baştaki './' kaldırıldı, daha temiz.
 # 3. ChromaDB koleksiyon adı
 KOLEKSIYON_ADI = "gaih-abap-chatbot"
 # --- AYARLAR BİTTİ ---
 
-# Deploy için:
+
+# Deploy için API anahtarını ayarla
 if "GOOGLE_API_KEY" not in os.environ:
     os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
@@ -31,31 +32,24 @@ def load_rag_chain():
     PDF'i işler, vektör veritabanını oluşturur (veya yükler) ve RAG zincirini kurar.
     """
     
-    # Embedding modelini yükle
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
 
-    # ChromaDB istemcisini ayarla (Diske kaydeden versiyon)
-    client_settings = Settings(
-        anonymized_telemetry=False,
-        is_persistent=True
-    )
-    client = chromadb.PersistentClient(
-        path=DB_DIZINI, 
-        settings=client_settings
-    )
-
-    try:
-        # 1. Varolan veritabanını yüklemeyi dene
+    # Klasörün var olup olmadığını kontrol et. Bu, try-except'ten daha güvenilir.
+    if os.path.exists(DB_DIZINI):
+        # Klasör varsa, mevcut veritabanını yükle
+        st.info("Mevcut veritabanı yükleniyor...")
+        client_settings = Settings(anonymized_telemetry=False, is_persistent=True)
+        client = chromadb.PersistentClient(path=DB_DIZINI, settings=client_settings)
+        
         vector_store = Chroma(
             client=client,
             collection_name=KOLEKSIYON_ADI,
             embedding_function=embeddings,
         )
-        print("Mevcut veritabanı yüklendi.")
-    
-    except Exception as e:
-        # 2. Veritabanı yoksa veya yüklenemezse, sıfırdan oluştur
-        print(f"Veritabanı yüklenemedi (Hata: {e}). Yeniden oluşturuluyor...")
+        st.info("Veritabanı başarıyla yüklendi.")
+    else:
+        # Klasör yoksa, veritabanını sıfırdan oluştur
+        st.info("Veritabanı bulunamadı. Sıfırdan oluşturuluyor...")
         
         # PDF'i yükle ve böl
         loader = PyPDFLoader(PDF_DOSYA_ADI)
@@ -67,21 +61,20 @@ def load_rag_chain():
         vector_store = Chroma.from_documents(
             documents=texts,
             embedding=embeddings,
-            client=client,
-            collection_name=KOLEKSIYON_ADI
+            collection_name=KOLEKSIYON_ADI,
+            persist_directory=DB_DIZINI # persist_directory burada kullanılır
         )
-        print("Veritabanı oluşturuldu ve kaydedildi.")
+        st.info("Veritabanı oluşturuldu ve kaydedildi.")
 
-    # 3. Retriever oluştur
-    # search_kwargs={"k": 3} -> Soruya en yakın 3 metin parçasını bul
+    # Retriever oluştur
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
-    # 4. LLM'i ayarla (En son düzelttiğimiz model adı)
+    # LLM'i ayarla (Çalıştığından emin olduğumuz model adı)
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.57)
 
-    # 5. Prompt şablonunu oluştur
+    # Prompt şablonunu oluştur
     prompt_template = """
-    Sana verilen bağlamı (context) kullanarak soruyu yanıtla. 
+    Sana verilen bağlamı (context) kullanarak soruyu yanıtla. Sadece bağlamdaki bilgileri kullan.
     Eğer cevabı bağlamda bulamazsan, "Üzgünüm, bu bilgi notlarımda yer almıyor." de.
 
     Bağlam: {context}
@@ -90,7 +83,7 @@ def load_rag_chain():
     """
     prompt = PromptTemplate.from_template(prompt_template)
     
-    # 6. RAG Zincirini kur
+    # RAG Zincirini kur
     rag_chain = (
         {"context": retriever, "question": RunnablePassthrough()}
         | prompt
@@ -106,10 +99,8 @@ st.set_page_config(page_title="Kişisel ABAP Asistanı", page_icon="🤖")
 st.title("Kişisel ABAP Asistanı 🤖")
 st.write("Kendi SAP ABAP notlarınız hakkında sorular sorun.")
 
-# RAG zincirini yükle (cache'ten gelir)
 try:
-    with st.spinner("Asistan hazırlanıyor... Notlar yükleniyor..."):
-        rag_chain = load_rag_chain()
+    rag_chain = load_rag_chain()
     st.success("Asistan hazır! Sorularınızı sorabilirsiniz.")
 except Exception as e:
     st.error(f"Asistan yüklenirken bir hata oluştu: {e}")
@@ -128,19 +119,13 @@ for message in st.session_state.messages:
 
 # Kullanıcıdan yeni soru al
 if prompt := st.chat_input("ABAP ile ilgili sorunuzu buraya yazın..."):
-    # Kullanıcı mesajını hafızaya ve ekrana ekle
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    # Asistanın cevabını al
     with st.chat_message("assistant"):
         with st.spinner("Düşünüyorum..."):
             response = rag_chain.invoke(prompt)
             st.markdown(response)
     
-    # Asistan mesajını hafızaya ekle
-
     st.session_state.messages.append({"role": "assistant", "content": response})
-
-
