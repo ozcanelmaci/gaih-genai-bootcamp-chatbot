@@ -4,7 +4,6 @@ import chromadb
 from chromadb.config import Settings
 
 from langchain_community.document_loaders import PyPDFLoader
-from dotenv import load_dotenv
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
@@ -21,13 +20,9 @@ DB_DIZINI = "./chroma_db"
 KOLEKSIYON_ADI = "gaih-abap-chatbot"
 # --- AYARLAR BİTTİ ---
 
-load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
-
 # Deploy için:
-if not api_key:
-    print("Error: GOOGLE_API_KEY not found. Please check your .env file.")
-
+if "GOOGLE_API_KEY" not in os.environ:
+    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
 @st.cache_resource
 def load_rag_chain():
@@ -147,4 +142,5 @@ if prompt := st.chat_input("ABAP ile ilgili sorunuzu buraya yazın..."):
     # Asistan mesajını hafızaya ekle
 
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
