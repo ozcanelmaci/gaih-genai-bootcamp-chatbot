@@ -58,9 +58,11 @@ GOOGLE_API_KEY=your_google_api_key_here
 .
 ├── app.py              # Ana uygulama dosyası
 ├── requirements.txt    # Python bağımlılıkları
+├── ABAP-1_merged.pdf   # Veri
 ├── .env                # API anahtarları (git'e eklenmez)
 └── README.md           # Bu dosya(projenin açıklanması)
 </pre>
+**NOT:** **ABAP-1_merged.pdf** dosyası kişisel bilgiler içerdiği için github repository'den **KALDIRILMIŞTIR!**
 
 ## 💻 Chatbot Örnek Soru ve Yanıtları
 Soru: **invoice ile ilgili neler biliyorsun?**
