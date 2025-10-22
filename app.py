@@ -54,7 +54,7 @@ def load_rag_chain():
         # PDF'i yükle ve böl
         loader = PyPDFLoader(PDF_DOSYA_ADI)
         documents = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=100)
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
         texts = text_splitter.split_documents(documents)
         
         # Vektör veritabanını oluştur ve diske kaydet
@@ -70,11 +70,12 @@ def load_rag_chain():
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
     # LLM'i ayarla (Çalıştığından emin olduğumuz model adı)
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.57)
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.72)
 
     # Prompt şablonunu oluştur
     prompt_template = """
-    Sana verilen bağlamı (context) kullanarak soruyu yanıtla. Sadece bağlamdaki bilgileri kullan.
+    Sana verilen bağlamı (context) kullanarak soruyu yanıtla. Sadece bağlamdaki bilgileri kullan. Eğer kodsal örnekler varsa bunu algılayıp o örneği de ilet. 
+    Bilgiyi bulduğun sayfa sayısını da paylaşabilirsin.
     Eğer cevabı bağlamda bulamazsan, "Üzgünüm, bu bilgi notlarımda yer almıyor." de.
 
     Bağlam: {context}
@@ -129,3 +130,4 @@ if prompt := st.chat_input("ABAP ile ilgili sorunuzu buraya yazın..."):
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
