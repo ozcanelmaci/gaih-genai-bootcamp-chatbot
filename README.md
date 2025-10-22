@@ -80,3 +80,10 @@ Cevap:
 <pre>
 <img align="left" width="600" height="308" alt="image" src="https://github.com/user-attachments/assets/709fb1b4-329a-4778-a580-5054121b8835" />
 </pre>
+
+Soru: **User exit ile ilgili bilgi verir misin?**
+
+Cevap:
+<pre>
+<img align="left" width="600" height="308" alt="image" src="https://github.com/user-attachments/assets/7f4fb4da-ed8f-4dfe-922a-05f3cb9d93eb" />
+</pre>
