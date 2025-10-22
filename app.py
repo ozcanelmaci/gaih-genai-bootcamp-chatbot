@@ -15,15 +15,19 @@ from langchain_core.output_parsers import StrOutputParser
 # 1. PDF dosyanızın adını buraya yazın
 PDF_DOSYA_ADI = "ABAP-1_merged.pdf"
 # 2. Vektör veritabanının kaydedileceği klasör
-DB_DIZINI = "chroma_db" # Baştaki './' kaldırıldı, daha temiz.
+DB_DIZINI = "chroma_db"
 # 3. ChromaDB koleksiyon adı
 KOLEKSIYON_ADI = "gaih-abap-chatbot"
-# --- AYARLAR BİTTİ ---
 
+#local'de çalıştırırken .env dosyası oluşturup APIKEY'inizi o dosyaya yazıp aşağıdaki kütüphaneyi kullanabilirsiniz
+#from dotenv import load_dotenv
+#load_dotenv()
+#GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Deploy için API anahtarını ayarla
 if "GOOGLE_API_KEY" not in os.environ:
-    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"] #streamlit'ten deploy ederken github repomuzu seçerken gelişmiş ayarlar kısmında secrets kısmına
+    #apikey'imizi yazıyoruz ve sonrasında deploy ediyoruz.
 
 @st.cache_resource
 def load_rag_chain():
@@ -51,7 +55,7 @@ def load_rag_chain():
         # Klasör yoksa, veritabanını sıfırdan oluştur
         st.info("Veritabanı bulunamadı. Sıfırdan oluşturuluyor...")
         
-        # PDF'i yükle ve böl
+        # PDF'i yükle ve böl - Chunking işlemleri yapıyoruz
         loader = PyPDFLoader(PDF_DOSYA_ADI)
         documents = loader.load()
         text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=300)
@@ -62,14 +66,14 @@ def load_rag_chain():
             documents=texts,
             embedding=embeddings,
             collection_name=KOLEKSIYON_ADI,
-            persist_directory=DB_DIZINI # persist_directory burada kullanılır
+            persist_directory=DB_DIZINI
         )
         st.info("Veritabanı oluşturuldu ve kaydedildi.")
 
     # Retriever oluştur
     retriever = vector_store.as_retriever(search_kwargs={"k": 3})
 
-    # LLM'i ayarla (Çalıştığından emin olduğumuz model adı)
+    # LLM'i ayarla - kullanacağımız modeli buraya yazıyoruz
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.75)
 
     # Prompt şablonunu oluştur
@@ -130,5 +134,6 @@ if prompt := st.chat_input("ABAP ile ilgili sorunuzu buraya yazın..."):
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
