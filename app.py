@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import time
 import chromadb
 from chromadb.config import Settings
 
@@ -64,7 +65,7 @@ def load_rag_chain():
             
             # Eğer eklenecek başka parça kaldıysa 6 saniye bekle
             if i + batch_size < len(texts):
-                st.warning(f"Kota sınırı için bekleniyor... {len(texts)} parçanın {i + len(batch)} kadarı işlendi. Lütfen 60 saniye bekleyin.")
+                # st.warning(f"Kota sınırı için bekleniyor... {len(texts)} parçanın {i + len(batch)} kadarı işlendi. Lütfen 6 saniye bekleyin.")
                 time.sleep(6)
                 
         """ st.info("Veritabanı bulunamadı. Dökümanlar işleniyor (Bu biraz sürebilir)...")
@@ -149,6 +150,7 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
