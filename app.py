@@ -3,7 +3,8 @@ import os
 import chromadb
 from chromadb.config import Settings
 
-from langchain_community.document_loaders import PyPDFLoader
+# PyPDFLoader yerine çok daha başarılı olan PyMuPDFLoader kullanıyoruz
+from langchain_community.document_loaders import PyMuPDFLoader 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import Chroma
 from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGenerativeAI
@@ -12,22 +13,13 @@ from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 
 # --- DEĞİŞKENLERİ AYARLAYIN ---
-# 1. PDF dosyanızın adını buraya yazın
 PDF_DOSYA_ADI = "ABAP-1_merged.pdf"
-# 2. Vektör veritabanının kaydedileceği klasör
 DB_DIZINI = "chroma_db"
-# 3. ChromaDB koleksiyon adı
 KOLEKSIYON_ADI = "gaih-abap-chatbot"
-
-#local'de çalıştırırken .env dosyası oluşturup APIKEY'inizi o dosyaya yazıp aşağıdaki kütüphaneyi kullanabilirsiniz
-#from dotenv import load_dotenv
-#load_dotenv()
-#GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
 
 # Deploy için API anahtarını ayarla
 if "GOOGLE_API_KEY" not in os.environ:
-    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"] #streamlit'ten deploy ederken github repomuzu seçerken gelişmiş ayarlar kısmında secrets kısmına
-    #apikey'imizi yazıyoruz ve sonrasında deploy ediyoruz.
+    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
 
 @st.cache_resource
 def load_rag_chain():
@@ -36,11 +28,10 @@ def load_rag_chain():
     PDF'i işler, vektör veritabanını oluşturur (veya yükler) ve RAG zincirini kurar.
     """
     
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
+    # GÜNCELLEME: embedding-001 eski bir modeldir. Yeni standart text-embedding-004'tür.
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
 
-    # Klasörün var olup olmadığını kontrol et. Bu, try-except'ten daha güvenilir.
     if os.path.exists(DB_DIZINI):
-        # Klasör varsa, mevcut veritabanını yükle
         st.info("Mevcut veritabanı yükleniyor...")
         client_settings = Settings(anonymized_telemetry=False, is_persistent=True)
         client = chromadb.PersistentClient(path=DB_DIZINI, settings=client_settings)
@@ -52,43 +43,44 @@ def load_rag_chain():
         )
         st.info("Veritabanı başarıyla yüklendi.")
     else:
-        # Klasör yoksa, veritabanını sıfırdan oluştur
-        st.info("Veritabanı bulunamadı. Sıfırdan oluşturuluyor...")
+        st.info("Veritabanı bulunamadı. Dökümanlar işleniyor (Bu biraz sürebilir)...")
         
-        # PDF'i yükle ve böl - Chunking işlemleri yapıyoruz
-        loader = PyPDFLoader(PDF_DOSYA_ADI)
+        # GÜNCELLEME: PyMuPDFLoader metinleri, formatları ve tabloları çok daha iyi yakalar.
+        loader = PyMuPDFLoader(PDF_DOSYA_ADI)
         documents = loader.load()
-        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=300)
+        
+        # Chunking ayarlarını biraz daha optimize ettik
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=250)
         texts = text_splitter.split_documents(documents)
         
-        # Vektör veritabanını oluştur ve diske kaydet
         vector_store = Chroma.from_documents(
             documents=texts,
             embedding=embeddings,
             collection_name=KOLEKSIYON_ADI,
             persist_directory=DB_DIZINI
         )
-        st.info("Veritabanı oluşturuldu ve kaydedildi.")
+        st.info("Veritabanı oluşturuldu ve diske kaydedildi.")
 
-    # Retriever oluştur
-    retriever = vector_store.as_retriever(search_kwargs={"k": 3})
+    # Arama katsayısını (k) 4'e çıkarmak daha geniş bir bağlam yakalamayı sağlar
+    retriever = vector_store.as_retriever(search_kwargs={"k": 4})
 
-    # LLM'i ayarla - kullanacağımız modeli buraya yazıyoruz
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.75)
+    # LLM Modeli
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.3) 
 
-    # Prompt şablonunu oluştur
+    # Geliştirilmiş Prompt Şablonu
     prompt_template = """
-    Sana verilen bağlamı (context) kullanarak soruyu yanıtla. Sadece bağlamdaki bilgileri kullan. Eğer kodsal örnekler varsa bunu algılayıp o örneği de ilet. 
-    Bilgiyi bulduğun sayfa sayısını da paylaşabilirsin.
-    Eğer cevabı bağlamda bulamazsan, "Üzgünüm, bu bilgi notlarımda yer almıyor." de.
+    Sen deneyimli bir SAP ABAP danışmanısın. Sana verilen bağlamı (context) kullanarak kullanıcının sorusunu yanıtla.
+    Eğer bağlamda kod parçacıkları veya teknik detaylar varsa, bunları formatına uygun şekilde (Markdown kod blokları içinde) ilet.
+    Bilgiyi bulduğun sayfa numaralarını referans olarak ekle.
+    Cevabı bağlamda bulamazsan, kendi bilgilerini uydurma ve "Üzgünüm, bu bilgi notlarımda yer almıyor." de.
 
     Bağlam: {context}
+    
     Soru: {question}
     Cevap:
     """
     prompt = PromptTemplate.from_template(prompt_template)
     
-    # RAG Zincirini kur
     rag_chain = (
         {"context": retriever, "question": RunnablePassthrough()}
         | prompt
@@ -100,18 +92,17 @@ def load_rag_chain():
 
 # --- STREAMLIT ARAYÜZÜ ---
 
-st.set_page_config(page_title="Kişisel ABAP Asistanı", page_icon="🤖")
-st.title("Kişisel ABAP Asistanı 🤖")
-st.write("Kendi SAP ABAP notlarınız hakkında sorular sorun.")
+st.set_page_config(page_title="Kişisel ABAP Asistanı", page_icon="💻", layout="wide")
+st.title("Kişisel ABAP Asistanı 💻")
+st.markdown("Kendi SAP ABAP notlarınız, kodlarınız ve dökümanlarınız hakkında sorular sorun.")
+st.divider()
 
 try:
     rag_chain = load_rag_chain()
-    st.success("Asistan hazır! Sorularınızı sorabilirsiniz.")
+    st.success("Asistan hazır! Sorularınızı bekliyor.")
 except Exception as e:
     st.error(f"Asistan yüklenirken bir hata oluştu: {e}")
-    st.error("Lütfen PDF dosyasının adının doğru olduğundan ve GOOGLE_API_KEY'inizin Streamlit Secrets'a eklendiğinden emin olun.")
     st.stop()
-
 
 # Sohbet hafızasını başlat
 if "messages" not in st.session_state:
@@ -123,17 +114,14 @@ for message in st.session_state.messages:
         st.markdown(message["content"])
 
 # Kullanıcıdan yeni soru al
-if prompt := st.chat_input("ABAP ile ilgili sorunuzu buraya yazın..."):
+if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kullanılır?"):
     st.session_state.messages.append({"role": "user", "content": prompt})
     with st.chat_message("user"):
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("Düşünüyorum..."):
+        with st.spinner("Notlar taranıyor ve cevap hazırlanıyor..."):
             response = rag_chain.invoke(prompt)
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
-
-
-
