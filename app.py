@@ -67,7 +67,7 @@ def load_rag_chain():
     retriever = vector_store.as_retriever(search_kwargs={"k": 4})
 
     # LLM Modeli
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-pro", temperature=0.3) 
+    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3) 
 
     # Geliştirilmiş Prompt Şablonu
     prompt_template = """
@@ -127,6 +127,7 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
