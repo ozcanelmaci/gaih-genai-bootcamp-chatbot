@@ -57,16 +57,16 @@ def load_rag_chain():
             persist_directory=DB_DIZINI
         )
         
-        # Kota aşımını önlemek için 80'erli paketler (batch) halinde yükle
-        batch_size = 80
+        # Kota aşımını önlemek için 85'erli paketler (batch) halinde yükle
+        batch_size = 85
         for i in range(0, len(texts), batch_size):
             batch = texts[i : i + batch_size]
             vector_store.add_documents(batch)
             
             # Eğer eklenecek başka parça kaldıysa 6 saniye bekle
             if i + batch_size < len(texts):
-                # st.warning(f"Kota sınırı için bekleniyor... {len(texts)} parçanın {i + len(batch)} kadarı işlendi. Lütfen 6 saniye bekleyin.")
-                time.sleep(6)
+                # st.warning(f"Kota sınırı için bekleniyor... {len(texts)} parçanın {i + len(batch)} kadarı işlendi. Lütfen 60 saniye bekleyin.")
+                time.sleep(60)
                 
         """ st.info("Veritabanı bulunamadı. Dökümanlar işleniyor (Bu biraz sürebilir)...")
         
@@ -150,6 +150,7 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
