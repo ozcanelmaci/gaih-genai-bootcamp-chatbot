@@ -28,9 +28,8 @@ def load_rag_chain():
     PDF'i işler, vektör veritabanını oluşturur (veya yükler) ve RAG zincirini kurar.
     """
     
-    # GÜNCELLEME: embedding-001 eski bir modeldir. Yeni standart text-embedding-004'tür.
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/text-embedding-004")
-
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001" task_type="RETRIEVAL_QUERY")
+    
     if os.path.exists(DB_DIZINI):
         st.info("Mevcut veritabanı yükleniyor...")
         client_settings = Settings(anonymized_telemetry=False, is_persistent=True)
@@ -125,3 +124,4 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
