@@ -184,16 +184,11 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             # Artık cevap 'answer' anahtarı içinde dönüyor
             ai_response = response["answer"]
             st.markdown(ai_response)
+
+            # 🔴 YENİ EKLENEN RÖNTGEN BÖLÜMÜ (Expander)
+            with st.expander("🕵️‍♂️ Yapay Zeka Arka Planda Hangi Notları Okudu? (Tıkla ve İncele)"):
+                for i, doc in enumerate(response["context"]):
+                    sayfa_no = doc.metadata.get("page", "Bilinmiyor")
+                    st.info(f"**Sayfa {sayfa_no}**'den alınan parça:\n\n{doc.page_content}")
     
     st.session_state.messages.append({"role": "assistant", "content": ai_response})
-
-
-
-
-
-
-
-
-
-
-
