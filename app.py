@@ -11,6 +11,7 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
+from langchain_huggingface import HuggingFaceEmbeddings
 
 # --- DEĞİŞKENLERİ AYARLAYIN ---
 PDF_DOSYA_ADI = "ABAP-1_merged.pdf"
@@ -28,7 +29,8 @@ def load_rag_chain():
     PDF'i işler, vektör veritabanını oluşturur (veya yükler) ve RAG zincirini kurar.
     """
     
-    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", task_type="RETRIEVAL_QUERY")
+    # embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", task_type="RETRIEVAL_QUERY")
+    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
     
     if os.path.exists(DB_DIZINI):
         st.info("Mevcut veritabanı yükleniyor...")
@@ -124,5 +126,6 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
