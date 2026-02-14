@@ -185,7 +185,8 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             ai_response = response["answer"]
             st.markdown(ai_response)
     
-    st.session_state.messages.append({"role": "assistant", "content": response})
+    st.session_state.messages.append({"role": "assistant", "content": ai_response})
+
 
 
 
