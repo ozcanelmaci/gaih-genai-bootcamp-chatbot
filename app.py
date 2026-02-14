@@ -115,7 +115,7 @@ def load_rag_chain():
 
     """ # Geliştirilmiş Prompt Şablonu
     prompt_template = """
-    Sen deneyimli bir SAP ABAP danışmanısın. Sana verilen bağlamı (context) kullanarak kullanıcının sorusunu yanıtla.
+    """Sen deneyimli bir SAP ABAP danışmanısın. Sana verilen bağlamı (context) kullanarak kullanıcının sorusunu yanıtla.
     Eğer bağlamda kod parçacıkları veya teknik detaylar varsa, bunları formatına uygun şekilde (Markdown kod blokları içinde) ilet.
     Bilgiyi bulduğun sayfa numaralarını referans olarak ekle.
     Cevabı bağlamda bulamazsan, kendi bilgilerini uydurma ve "Üzgünüm, bu bilgi notlarımda yer almıyor." de.
@@ -123,7 +123,7 @@ def load_rag_chain():
     Bağlam: {context}
     
     Soru: {question}
-    Cevap:
+    Cevap: """
     """
     prompt = PromptTemplate.from_template(prompt_template)
     
@@ -186,6 +186,7 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             st.markdown(ai_response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
