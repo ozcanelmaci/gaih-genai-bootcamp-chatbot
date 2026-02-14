@@ -13,6 +13,11 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
 from langchain_huggingface import HuggingFaceEmbeddings
+# History-Aware Retriever için
+from langchain.chains import create_history_aware_retriever, create_retrieval_chain
+from langchain.chains.combine_documents import create_stuff_documents_chain
+from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langchain_core.messages import HumanMessage, AIMessage
 
 # --- DEĞİŞKENLERİ AYARLAYIN ---
 PDF_DOSYA_ADI = "ABAP-1_merged.pdf"
@@ -64,12 +69,51 @@ def load_rag_chain():
         st.info("Veritabanı oluşturuldu ve diske kaydedildi.")
 
     # Arama katsayısını (k) 4'e çıkarmak daha geniş bir bağlam yakalamayı sağlar
-    retriever = vector_store.as_retriever(search_kwargs={"k": 4})
+    retriever = vector_store.as_retriever(search_kwargs={"k": 6})
 
     # LLM Modeli
     llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3) 
 
-    # Geliştirilmiş Prompt Şablonu
+    # History-Aware Retriever -> Sohbet geçmişini de dahil ediyoruz
+    # --- 1. ADIM: SORUYU YENİDEN YAZAN PROMPT (Hafıza için) ---
+    contextualize_q_system_prompt = """Sohbet geçmişine ve kullanıcının son sorusuna bakarak,
+    kullanıcının ne sormak istediğini anla ve vektör veritabanında arama yapmak için 
+    tek başına anlamlı (bağımsız) bir soru cümlesi oluştur.
+    Soruyu cevaplama, sadece soruyu yeniden formüle et. Eğer soru zaten tek başına anlamlıysa aynen bırak."""
+    
+    contextualize_q_prompt = ChatPromptTemplate.from_messages([
+        ("system", contextualize_q_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ])
+    
+    # Geçmişin farkında olan arayıcıyı oluştur
+    history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
+
+    # --- 2. ADIM: CEVABI ÜRETEN PROMPT ---
+    qa_system_prompt = """Sen deneyimli bir SAP ABAP asistanısın. 
+    Aşağıdaki bağlamı (context) kullanarak kullanıcının sorusunu yanıtla.
+    Eğer bağlamda kod parçacıkları veya teknik detaylar varsa, formatına uygun şekilde ilet.
+    Bilgiyi bulduğun sayfa numaralarını referans olarak ekle.
+    Cevabı bağlamda bulamazsan, kendi bilgilerini uydurma ve "Üzgünüm, bu bilgi notlarımda yer almıyor." de.
+
+    Bağlam: 
+    {context}"""
+    
+    qa_prompt = ChatPromptTemplate.from_messages([
+        ("system", qa_system_prompt),
+        MessagesPlaceholder("chat_history"),
+        ("human", "{input}"),
+    ])
+    
+    question_answer_chain = create_stuff_documents_chain(llm, qa_prompt)
+
+    # --- 3. ADIM: ZİNCİRLERİ BİRLEŞTİR ---
+    rag_chain = create_retrieval_chain(history_aware_retriever, question_answer_chain)
+
+    return rag_chain
+
+    """ # Geliştirilmiş Prompt Şablonu
     prompt_template = """
     Sen deneyimli bir SAP ABAP danışmanısın. Sana verilen bağlamı (context) kullanarak kullanıcının sorusunu yanıtla.
     Eğer bağlamda kod parçacıkları veya teknik detaylar varsa, bunları formatına uygun şekilde (Markdown kod blokları içinde) ilet.
@@ -88,9 +132,9 @@ def load_rag_chain():
         | prompt
         | llm
         | StrOutputParser()
-    )
+    ) 
     
-    return rag_chain
+    return rag_chain """
 
 # --- STREAMLIT ARAYÜZÜ ---
 
@@ -123,10 +167,26 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
 
     with st.chat_message("assistant"):
         with st.spinner("Notlar taranıyor ve cevap hazırlanıyor..."):
-            response = rag_chain.invoke(prompt)
-            st.markdown(response)
+            # 🔴 YENİ EKLENEN KISIM: Streamlit mesajlarını LangChain formatına çevir
+            chat_history = []
+            for msg in st.session_state.messages[:-1]: # Son mesajı (şu anki soruyu) geçmişe koyma
+                if msg["role"] == "user":
+                    chat_history.append(HumanMessage(content=msg["content"]))
+                else:
+                    chat_history.append(AIMessage(content=msg["content"]))
+
+            # RAG zincirine soruyu ve sohbet geçmişini (chat_history) birlikte yolla
+            response = rag_chain.invoke({
+                "input": prompt, 
+                "chat_history": chat_history
+            })
+            
+            # Artık cevap 'answer' anahtarı içinde dönüyor
+            ai_response = response["answer"]
+            st.markdown(ai_response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
