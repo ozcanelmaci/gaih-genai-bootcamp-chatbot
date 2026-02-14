@@ -11,7 +11,6 @@ from langchain_google_genai import GoogleGenerativeAIEmbeddings, ChatGoogleGener
 from langchain_core.prompts import PromptTemplate
 from langchain_core.runnables import RunnablePassthrough
 from langchain_core.output_parsers import StrOutputParser
-from langchain_huggingface import HuggingFaceEmbeddings
 
 # --- DEĞİŞKENLERİ AYARLAYIN ---
 PDF_DOSYA_ADI = "ABAP-1_merged.pdf"
@@ -29,8 +28,7 @@ def load_rag_chain():
     PDF'i işler, vektör veritabanını oluşturur (veya yükler) ve RAG zincirini kurar.
     """
     
-    # embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", task_type="RETRIEVAL_QUERY")
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embeddings = GoogleGenerativeAIEmbeddings(model="models/gemini-embedding-001", task_type="RETRIEVAL_QUERY")
     
     if os.path.exists(DB_DIZINI):
         st.info("Mevcut veritabanı yükleniyor...")
@@ -46,6 +44,31 @@ def load_rag_chain():
     else:
         st.info("Veritabanı bulunamadı. Dökümanlar işleniyor (Bu biraz sürebilir)...")
         
+        loader = PyMuPDFLoader(PDF_DOSYA_ADI)
+        documents = loader.load()
+        text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=250)
+        texts = text_splitter.split_documents(documents)
+        
+        # Boş bir Chroma veritabanı oluştur
+        vector_store = Chroma(
+            collection_name=KOLEKSIYON_ADI,
+            embedding_function=embeddings,
+            persist_directory=DB_DIZINI
+        )
+        
+        # Kota aşımını önlemek için 80'erli paketler (batch) halinde yükle
+        batch_size = 80
+        for i in range(0, len(texts), batch_size):
+            batch = texts[i : i + batch_size]
+            vector_store.add_documents(batch)
+            
+            # Eğer eklenecek başka parça kaldıysa 6 saniye bekle
+            if i + batch_size < len(texts):
+                st.warning(f"Kota sınırı için bekleniyor... {len(texts)} parçanın {i + len(batch)} kadarı işlendi. Lütfen 60 saniye bekleyin.")
+                time.sleep(6)
+                
+        """ st.info("Veritabanı bulunamadı. Dökümanlar işleniyor (Bu biraz sürebilir)...")
+        
         # GÜNCELLEME: PyMuPDFLoader metinleri, formatları ve tabloları çok daha iyi yakalar.
         loader = PyMuPDFLoader(PDF_DOSYA_ADI)
         documents = loader.load()
@@ -60,7 +83,7 @@ def load_rag_chain():
             collection_name=KOLEKSIYON_ADI,
             persist_directory=DB_DIZINI
         )
-        st.info("Veritabanı oluşturuldu ve diske kaydedildi.")
+        st.info("Veritabanı oluşturuldu ve diske kaydedildi.") """
 
     # Arama katsayısını (k) 4'e çıkarmak daha geniş bir bağlam yakalamayı sağlar
     retriever = vector_store.as_retriever(search_kwargs={"k": 4})
@@ -126,6 +149,7 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
             st.markdown(response)
     
     st.session_state.messages.append({"role": "assistant", "content": response})
+
 
 
 
