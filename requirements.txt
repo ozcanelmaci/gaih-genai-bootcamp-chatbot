@@ -10,3 +10,4 @@ langchain-google-genai==2.0.10
 langchain-chroma==0.2.2
 langchain-huggingface 
 sentence-transformers
+langchain-groq
