@@ -79,7 +79,7 @@ def load_rag_chain():
     # Llama 3.3 70B, şu anki en zeki ve en hızlı açık kaynaklı modellerden biridir
     llm = ChatGroq(
         model_name="llama-3.3-70b-versatile", 
-        temperature=0.3
+        temperature=0.2
     )
 
     # History-Aware Retriever -> Sohbet geçmişini de dahil ediyoruz
@@ -99,11 +99,13 @@ def load_rag_chain():
     history_aware_retriever = create_history_aware_retriever(llm, retriever, contextualize_q_prompt)
 
     # --- 2. ADIM: CEVABI ÜRETEN PROMPT ---
-    qa_system_prompt = """Sen deneyimli bir SAP ABAP asistanısın. 
-    Aşağıdaki bağlamı (context) kullanarak kullanıcının sorusunu yanıtla.
-    Eğer bağlamda kod parçacıkları veya teknik detaylar varsa, formatına uygun şekilde ilet.
+    qa_system_prompt = """Sen YALNIZCA sana verilen dökümanları okuyabilen, dış dünyaya kapalı bir chatbotsun.
+    Kullanıcının sorusunu KESİNLİKLE ve SADECE aşağıdaki bağlamı (context) kullanarak yanıtla.
+    Kendi ön bilgilerini ASLA kullanma. Bağlamda yazmayan hiçbir şeyi uydurma.
+    
+    Eğer sorunun cevabı aşağıdaki bağlamda net olarak yoksa, KESİNLİKLE "Üzgünüm, bu bilgi notlarımda yer almıyor." de.
+    Eğer bağlamda kod parçacıkları varsa, formatına uygun şekilde ilet.
     Bilgiyi bulduğun sayfa numaralarını referans olarak ekle.
-    Cevabı bağlamda bulamazsan, kendi bilgilerini uydurma ve "Üzgünüm, bu bilgi notlarımda yer almıyor." de.
 
     Bağlam: 
     {context}"""
@@ -211,5 +213,6 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
                 else:
                     # Başka bir hataysa ekrana yazdır ama sistemi çökertme
                     st.error(f"Beklenmeyen bir hata oluştu: {e}")
+
 
 
