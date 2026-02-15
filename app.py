@@ -69,7 +69,7 @@ def load_rag_chain():
         )
         st.info("Veritabanı oluşturuldu ve diske kaydedildi.")
 
-    # Arama katsayısını (k) 4'e çıkarmak daha geniş bir bağlam yakalamayı sağlar
+    # Arama katsayısını (k) 6'ya çıkarmak daha geniş bir bağlam yakalamayı sağlar
     retriever = vector_store.as_retriever(search_kwargs={"k": 6})
 
     # LLM Modeli
@@ -79,7 +79,7 @@ def load_rag_chain():
     # Llama 3.3 70B, şu anki en zeki ve en hızlı açık kaynaklı modellerden biridir
     llm = ChatGroq(
         model_name="llama-3.3-70b-versatile", 
-        temperature=0.2
+        temperature=0.1
     )
 
     # History-Aware Retriever -> Sohbet geçmişini de dahil ediyoruz
@@ -213,6 +213,7 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
                 else:
                     # Başka bir hataysa ekrana yazdır ama sistemi çökertme
                     st.error(f"Beklenmeyen bir hata oluştu: {e}")
+
 
 
 
