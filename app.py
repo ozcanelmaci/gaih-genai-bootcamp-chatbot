@@ -18,6 +18,7 @@ from langchain.chains import create_history_aware_retriever, create_retrieval_ch
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain_core.messages import HumanMessage, AIMessage
+from langchain_groq import ChatGroq
 
 # --- DEĞİŞKENLERİ AYARLAYIN ---
 PDF_DOSYA_ADI = "ABAP-1_merged.pdf"
@@ -25,8 +26,8 @@ DB_DIZINI = "chroma_db"
 KOLEKSIYON_ADI = "gaih-abap-chatbot"
 
 # Deploy için API anahtarını ayarla
-if "GOOGLE_API_KEY" not in os.environ:
-    os.environ["GOOGLE_API_KEY"] = st.secrets["GOOGLE_API_KEY"]
+if "GROQ_API_KEY" not in os.environ:
+    os.environ["GROQ_API_KEY"] = st.secrets["GROQ_API_KEY"]
 
 @st.cache_resource
 def load_rag_chain():
@@ -72,7 +73,14 @@ def load_rag_chain():
     retriever = vector_store.as_retriever(search_kwargs={"k": 6})
 
     # LLM Modeli
-    llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3) 
+    # llm = ChatGoogleGenerativeAI(model="gemini-2.5-flash", temperature=0.3) 
+
+    # YENİ (Groq & Llama 3) - Bunu ekliyoruz
+    # Llama 3.3 70B, şu anki en zeki ve en hızlı açık kaynaklı modellerden biridir
+    llm = ChatGroq(
+        model_name="llama-3.3-70b-versatile", 
+        temperature=0.3
+    )
 
     # History-Aware Retriever -> Sohbet geçmişini de dahil ediyoruz
     # --- 1. ADIM: SORUYU YENİDEN YAZAN PROMPT (Hafıza için) ---
@@ -203,4 +211,5 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
                 else:
                     # Başka bir hataysa ekrana yazdır ama sistemi çökertme
                     st.error(f"Beklenmeyen bir hata oluştu: {e}")
+
 
