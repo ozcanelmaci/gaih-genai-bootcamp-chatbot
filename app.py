@@ -175,20 +175,32 @@ if prompt := st.chat_input("Örn: ALV Grid oluşturmak için hangi fonksiyon kul
                 else:
                     chat_history.append(AIMessage(content=msg["content"]))
 
-            # RAG zincirine soruyu ve sohbet geçmişini (chat_history) birlikte yolla
-            response = rag_chain.invoke({
-                "input": prompt, 
-                "chat_history": chat_history
-            })
-            
-            # Artık cevap 'answer' anahtarı içinde dönüyor
-            ai_response = response["answer"]
-            st.markdown(ai_response)
+            # 🔴 YENİ EKLENEN KISIM: Hata Yakalama (Try-Except) Bloğu
+            try:
 
-            # 🔴 YENİ EKLENEN RÖNTGEN BÖLÜMÜ (Expander)
-            with st.expander("🕵️‍♂️ Yapay Zeka Arka Planda Hangi Notları Okudu? (Tıkla ve İncele)"):
-                for i, doc in enumerate(response["context"]):
-                    sayfa_no = doc.metadata.get("page", "Bilinmiyor")
-                    st.info(f"**Sayfa {sayfa_no}**'den alınan parça:\n\n{doc.page_content}")
+                # RAG zincirine soruyu ve sohbet geçmişini (chat_history) birlikte yolla
+                response = rag_chain.invoke({
+                    "input": prompt, 
+                    "chat_history": chat_history
+                })
+                
+                # Artık cevap 'answer' anahtarı içinde dönüyor
+                ai_response = response["answer"]
+                st.markdown(ai_response)
     
-    st.session_state.messages.append({"role": "assistant", "content": ai_response})
+                # 🔴 YENİ EKLENEN RÖNTGEN BÖLÜMÜ (Expander)
+                with st.expander("🕵️‍♂️ Yapay Zeka Arka Planda Hangi Notları Okudu? (Tıkla ve İncele)"):
+                    for i, doc in enumerate(response["context"]):
+                        sayfa_no = doc.metadata.get("page", "Bilinmiyor")
+                        st.info(f"**Sayfa {sayfa_no}**'den alınan parça:\n\n{doc.page_content}")
+    
+                st.session_state.messages.append({"role": "assistant", "content": ai_response})
+
+            except Exception as e:
+                # Eğer hata kota hatasıysa kibar bir uyarı ver
+                if "ResourceExhausted" in str(e) or "429" in str(e):
+                    st.warning("Google API hız sınırına takıldık! 😅 Lütfen 30-40 saniye bekleyip sorunuzu tekrar gönderin.")
+                else:
+                    # Başka bir hataysa ekrana yazdır ama sistemi çökertme
+                    st.error(f"Beklenmeyen bir hata oluştu: {e}")
+
